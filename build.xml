@@ -1,0 +1,63 @@
+<project name="ufinder" basedir="." default="main">
+	<property name="build.dir"   value="build"/>
+	<property name="lib.dir"     value="lib"/>
+	<property name="classes.dir" value="${build.dir}/classes"/>
+	<property name="jar.dir"     value="${build.dir}/jar"/>
+	<property name="main-class"  value="ufinder.ufinder"/>
+	
+	<property name="one-jar.dist.dir" value="onejar"/>
+	<import file="${one-jar.dist.dir}/one-jar-ant-task.xml" optional="true" />
+	
+	<path id="classpath">
+		<fileset dir="${lib.dir}" includes="**/*.jar"/>
+		<fileset dir="${classes.dir}" includes="**/.class"/>
+	</path>
+	
+	<target name="clean">
+        <delete dir="${build.dir}"/>
+    </target>
+    
+    <target name="compile">
+        <mkdir dir="${classes.dir}"/>
+        <javac srcdir="ufinder/src" destdir="${classes.dir}" classpathref="classpath"/>
+        <copy todir="${classes.dir}">
+        	<fileset dir="${lib.dir}" includes="**/*.conf"/>
+        	<fileset dir="${lib.dir}" includes="**/*.xml"/>
+        </copy>
+    </target>
+    
+    <target name="jar" depends="compile">
+    	<mkdir dir="${jar.dir}"/>
+    	<jar destfile="${jar.dir}/${ant.project.name}.jar" basedir="build/classes">
+    		<manifest>
+    			<attribute name="Main-Class" value="ufinder.ufinder"/>
+    			<attribute name="Permissions" value="all-permissions"/>
+    			<attribute name="Class-Path" value="lib/Aladin.jar lib/swing-layout-1.0.3.jar"/>
+    		</manifest>
+    	</jar>
+    </target>
+    
+    <target name="onejar" depends="compile">
+        <mkdir dir="${jar.dir}"/>
+        <one-jar destfile="${jar.dir}/${ant.project.name}.jar" onejarmainclass="${main-class}">
+			<main>
+				<fileset dir="${classes.dir}"/>
+			</main>
+			<lib>
+				<fileset dir="${lib.dir}" includes="**/*.jar"/>
+			</lib>
+			<manifest>
+				<attribute name="Specification-Title" value="ufinder"/>
+			</manifest>
+        </one-jar>
+    </target>
+    
+    <target name="run" depends="jar">
+        <java jar="${jar.dir}/${ant.project.name}.jar" fork="true"/>
+    </target>
+    
+    <target name="clean-build" depends="clean,jar"/>
+    
+    <target name="main" depends="clean,run"/>
+    
+</project>

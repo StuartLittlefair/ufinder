@@ -1,0 +1,2 @@
+Main-Class: ufinder.ufinder
+Class-Path: lib/Aladin.jar lib/swing-layout-1.0.3.jar 

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<VOTABLE xmlns="http://www.ivoa.net/xml/VOTable/v1.1" xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <DESCRIPTION>UCAM FoV description</DESCRIPTION>
+  <!-- This is the field of view itself -->
+   <RESOURCE ID="UCAM_FoV" name="UCAM Field of View" utype="ivoa:characterization/[ucd=pos]/coverage/support">
+     <DESCRIPTION>Ultracam is a CCD camera with somewhat versatile options for windowing and binning. The configuration in this file 
+       is appropriate for ULTRACAM mounted on the VLT</DESCRIPTION>
+     <!-- J2000 coordinates -->
+      <PARAM ID="J2000" name="Coord Frame" datatype="char" utype="stc:AstroCoordSys/SpaceFrame/SpaceRefFrame" value="J2000" />
+      <!-- in cartesian -->
+      <PARAM name="FOV Coord Flavor" datatype="char" utype="stc:AstroCoordSys/SpaceFrame/CoordFlavor" value="CARTESIAN" />
+      <!-- field centres right ascension (equatorial) -->
+      <PARAM name="RA" ucd="pos.eq.ra;meta.main" ref="J2000" datatype="char" arraysize="13" unit="&quot;h:m:s&quot;" utype="stc:AstroCoordSys/SpaceFrame/OffsetCenter[1]" />
+      <!-- field centres declination (equatorial) -->
+      <PARAM name="DEC" ucd="pos.eq.dec;meta.main" ref="J2000" datatype="char" arraysize="12" unit="&quot;d:m:s&quot;" utype="stc:AstroCoordSys/SpaceFrame/OffsetCenter[2]" />
+      <!-- POSITION ANGLE -->
+      <PARAM name="PA" ucd="pos.posAng" datatype="float" unit="deg" utype="stc:AstroCoordSys/SpaceFrame/PositionAngle"  />
+      <PARAM name="Rollable" value="true" />
+      <PARAM name="Movable" value="true" />
+      <!-- Whole CCD: the maximum coverage -->
+      <RESOURCE ID="WCCD" name="WCCD">
+         <DESCRIPTION>The whole ultracam chip</DESCRIPTION>
+         <PARAM ShortDescription="UCAM" />
+         <TABLE ID="UCAM" name="UCAM">
+            <PARAM name="Region" value="Polygon" />
+            <FIELD ID="VXO" name="VertexXOffset" datatype="float" unit="arcsec" utype="stc:AstroCoordArea/Region/reg:Polygon/Vertex/Position[1]" />
+            <FIELD ID="VYO" name="VertexYOffset" datatype="float" unit="arcsec" utype="stc:AstroCoordArea/Region/reg:Polygon/Vertex/Position[2]" />
+            <DATA>
+               <TABLEDATA>
+                  <TR>
+                     <TD>76.8</TD>
+                     <TD>76.8</TD>
+                  </TR>
+                  <TR>
+                     <TD>-76.8</TD>
+                     <TD>76.8</TD>
+                  </TR>
+                  <TR>
+                     <TD>-76.8</TD>
+                     <TD>-76.8</TD>
+                  </TR>
+                  <TR>
+                     <TD>76.8</TD>
+                     <TD>-76.8</TD>
+                  </TR>
+               </TABLEDATA>
+            </DATA>
+         </TABLE>
+         <PARAM name="color" value="red" />
+      </RESOURCE>
+      <!-- end of the main Ultracam chip -->
+   </RESOURCE>
+</VOTABLE>
+
