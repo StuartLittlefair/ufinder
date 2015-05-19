@@ -651,6 +651,14 @@ public class ufinder extends JFrame implements VOApp,
 		int w = fontMetrics.stringWidth(string);
 		g2d.drawString(string,width-w-10,ypos);
 	    }
+	    
+	    // telescope name
+	    String telName = _telescope.name;
+	    if (telName.length() > 0){
+            int w = fontMetrics.stringWidth(telName);
+            g2d.drawString(telName,width-w-10,ypos+=h);
+        }	    
+
 	    // pointing parameters
 	    String raText=null, decText=null, paText = null;
 	    try {
