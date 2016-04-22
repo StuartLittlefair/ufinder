@@ -4,7 +4,8 @@
 	<property name="classes.dir" value="${build.dir}/classes"/>
 	<property name="jar.dir"     value="${build.dir}/jar"/>
 	<property name="main-class"  value="ufinder.ufinder"/>
-	
+	<property name="ant.build.javac.source" value="1.7"/>
+    <property name="ant.build.javac.target" value="1.7"/>
 	<property name="one-jar.dist.dir" value="onejar"/>
 	<import file="${one-jar.dist.dir}/one-jar-ant-task.xml" optional="true" />
 	
