@@ -39,7 +39,7 @@ public class ufinder extends JFrame implements VOApp,
 	// accurate - assume 0.85 reflectivity for M3 
 	// new Telescope("NTT", new double[] {24.56, 26.37, 25.71, 25.57, 24.73}, 0.35, true, 0.0, 0.0, 0.0, "vlt.xml"),
 	// less accurate - 0.9 new Telescope("NTT", new double[] {24.84, 26.45, 25.79, 25.65, 24.81}, 0.35, true, 0.0, 0.0, 0.0, "vlt.xml"),
-	new Telescope("VLT", new double[] {26.54, 28.35, 27.69, 27.55, 26.71}, 0.1557, true, 0.0, -1.4402, -3.1856, "vlt.xml"),
+	    new Telescope("VLT", new double[] {26.54, 28.35, 27.69, 27.55, 26.71}, 0.1557, true, 0.0, -1.4402, -3.1856, "vlt.xml"),
     	new Telescope("WHT", new double[] {25.11, 26.92, 26.26, 26.12, 25.28}, 0.30, false, 0.0, 0.0, 0.0, "wht.xml"),
     };
     /** delta_pa is zero on the vlt because of a software offset applied by the TCS. The 
