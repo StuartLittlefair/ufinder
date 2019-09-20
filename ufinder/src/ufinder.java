@@ -29,6 +29,8 @@ import java.awt.FontMetrics;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 
+import java.util.prefs.Preferences;
+
 public class ufinder extends JFrame implements VOApp,
                                                ActionListener{
 
@@ -47,6 +49,8 @@ public class ufinder extends JFrame implements VOApp,
     /** delta_pa is zero on the vlt because of a software offset applied by the TCS. The
      * physical value is -84.7 degrees
      */
+	// persistent preferences used for changing telescope parameters
+    final Preferences _telPref = Preferences.userNodeForPackage(this.getClass());
     // The following is used to pass the telescope data around
     private Telescope _telescope = null, _old_telescope = null;
 
@@ -263,6 +267,21 @@ public class ufinder extends JFrame implements VOApp,
     	}
     }
 
+    private void telSync(){
+        // now read in user set preferences if available
+        boolean old_flipped = _telescope.flipped;
+        _telescope.name       = _telPref.get("Name",     _telescope.name);
+        _telescope.plateScale = _telPref.getDouble("Plate Scale", _telescope.plateScale);
+        _telescope.flipped    = _telPref.getBoolean("Flip E-W", _telescope.flipped);
+        _telescope.delta_pa   = _telPref.getDouble("Delta PA", _telescope.delta_pa);
+        _telescope.delta_x    = _telPref.getDouble("Delta X",  _telescope.delta_x);
+        _telescope.delta_y    = _telPref.getDouble("Delta Y",  _telescope.delta_y);
+        boolean new_flipped = _telescope.flipped;
+        if(old_flipped != new_flipped && aladin != null){
+            aladin.execCommand("flipflop H");
+        }
+    }
+
     private VOApp aladin = null;
     String aladinTarget=null;
 
@@ -368,8 +387,9 @@ public class ufinder extends JFrame implements VOApp,
 	    // Menu bar
 	    final JMenuBar menubar = new JMenuBar();
 	    this.setJMenuBar(menubar);
-	    // File menu
+	    // File and telescope menus
 	    menubar.add(createFileMenu());
+		menubar.add(createTelMenu());
 
 	    // Middle-left panel for displaying target and s-to-n information
 	    addComponent( container, createTimingPanel(),  0, 2,  1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
@@ -803,53 +823,9 @@ public class ufinder extends JFrame implements VOApp,
     	final JPanel _objPanel = new JPanel(gbLayout);
     	_objPanel.setBorder(new EmptyBorder(15,15,15,15));
 
-	final JPanel telPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-
-	// Radio Buttons to select telescope
-	final JRadioButton[] telescopeButtons = new JRadioButton[TELESCOPE_DATA.length];
-	final ButtonGroup telescopeGroup = new ButtonGroup();
-	for(int ntel=0; ntel<TELESCOPE_DATA.length; ntel++){
-	    telescopeButtons[ntel] = new JRadioButton(TELESCOPE_DATA[ntel].name);
-
-	    telescopeButtons[ntel].addActionListener(
-						      new ActionListener(){
-							  public void actionPerformed(final ActionEvent e){
-							      TELESCOPE = ((JRadioButton)e.getSource()).getText();
-							      // Set the current telescope
-							      for(int i=0; i<TELESCOPE_DATA.length; i++){
-								  if(TELESCOPE_DATA[i].name.equals(TELESCOPE)){
-								      _old_telescope = _telescope;
-								      _telescope = TELESCOPE_DATA[i];
-								      break;
-								  }
-							      }
-							      if (aladin != null){
-								  if(_old_telescope.flipped != _telescope.flipped)
-								      aladin.execCommand("flipflop H");
-								  if(_telescope.name.equalsIgnoreCase("wht")){
-								      aladin.execCommand("zoom 1x");
-								  } else if (_telescope.name.equalsIgnoreCase("ntt")){
-								      aladin.execCommand("zoom 1x");
-								  } else if (_telescope.name.equalsIgnoreCase("vlt")){
-								      aladin.execCommand("zoom 2x");
-								  }}
-							      FOVSync();
-							  }});
-	    telescopeGroup.add(telescopeButtons[ntel]);
-	    telPanel.add(telescopeButtons[ntel]);
-	}
-	addComponent(_objPanel, telPanel, 1,ypos++,5,1,GridBagConstraints.NONE, GridBagConstraints.WEST);
-
     	// Add some space before we get onto the pointing definitions
     	addComponent( _objPanel, Box.createVerticalStrut(10), 0, ypos++,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
-	// Select the current telescope
-	for(int i=0; i<TELESCOPE_DATA.length; i++){
-	    if(TELESCOPE_DATA[i].name.equals(TELESCOPE)){
-		telescopeButtons[i].setSelected(true);
-		break;
-	    }
-	}
 
 	// entry box for object name
     	final JLabel objLabel = new JLabel("Object Name  ");
@@ -1275,6 +1251,149 @@ public class ufinder extends JFrame implements VOApp,
 
 
     //------------------------------------------------------------------------------------------------------------------------------------------
+	/** Creates the "Telescope" menu entry **/
+	private JMenu createTelMenu() {
+		final JMenu telMenu = new JMenu("Telescope");
+		final JMenuItem _set = new JMenuItem("Set Telescope Parameters");
+		_set.addActionListener(
+				new ActionListener(){
+					public void actionPerformed(ActionEvent e) {
+									SwingUtilities.invokeLater(new Runnable() {
+						public void run() {
+							JFrame newframe = new JFrame("Telescope Parameters");
+							newframe.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+
+							final JPanel newPanel = new JPanel(gbLayout);
+							newPanel.setBorder(new EmptyBorder(15,15,15,15));
+
+							final JTextField paField = new JTextField(15);
+							final JTextField dxField = new JTextField(15);
+							final JTextField dyField = new JTextField(15);
+							final JTextField psField = new JTextField(15);
+
+							final JRadioButton flipyes = new JRadioButton("Yes");
+							final JRadioButton flipno  = new JRadioButton("No");
+							if(_telPref.getBoolean("Flip E-W",TELESCOPE_DATA[0].flipped)){
+							flipyes.setSelected(true);
+							}else{
+							flipno.setSelected(true);
+							}
+							JLabel flipLabel = new JLabel("Flip E-W: ");
+							ButtonGroup group = new ButtonGroup();
+							group.add(flipyes);
+							group.add(flipno);
+
+							final JTextField nameField = new JTextField(_telPref.get("Name", _telescope.name),15);
+							JLabel nameLabel = new JLabel("Name: ");
+
+							ActionListener onEntry = new ActionListener () {
+								public void actionPerformed(ActionEvent e){
+								System.out.println(e.getActionCommand());
+								if(e.getActionCommand().equals("close")){
+									newPanel.getTopLevelAncestor().setVisible(false);
+								}
+								if(e.getActionCommand().equals("name")){
+									_telPref.put("Name",nameField.getText());
+									System.out.println(nameField.getText());
+									telSync();
+								}
+								if(e.getActionCommand().equals("ps")){
+									_telPref.putDouble("Plate Scale",Double.parseDouble(psField.getText()));
+									telSync();
+									FOVSync();
+								}
+								if(e.getActionCommand().equals("flip")){
+									_telPref.putBoolean("Flip E-W",true);
+									telSync();
+									FOVSync();
+								}
+								if(e.getActionCommand().equals("noflip")){
+									_old_telescope = _telescope;
+									_telPref.putBoolean("Flip E-W",false);
+									telSync();
+									FOVSync();
+								}
+								if(e.getActionCommand().equals("pa")){
+									_telPref.putDouble("Delta PA",Double.parseDouble(paField.getText()));
+									telSync();
+									FOVSync();
+								}
+								if(e.getActionCommand().equals("dx")){
+									_telPref.putDouble("Delta X",Double.parseDouble(dxField.getText()));
+									telSync();
+									FOVSync();
+								}
+								if(e.getActionCommand().equals("dy")){
+									_telPref.putDouble("Delta Y",Double.parseDouble(dyField.getText()));
+									telSync();
+									FOVSync();
+								}
+								}
+							};
+
+							flipyes.setActionCommand("flip");
+							flipyes.addActionListener(onEntry);
+							flipno.setActionCommand("noflip");
+							flipno.addActionListener(onEntry);
+
+							psField.setText(round(_telPref.getDouble("Plate Scale", _telescope.plateScale),3));
+							psField.setToolTipText("Plate scale (in arcseconds)");
+							psField.setActionCommand("ps");
+							psField.addActionListener(onEntry);
+							JLabel psLabel = new JLabel("Plate Scale: ");
+
+							paField.setText(round( _telPref.getDouble("Delta PA", _telescope.delta_pa),2));
+							paField.setToolTipText("Rotator position in degrees when ultracam chip runs N-S");
+							paField.setActionCommand("pa");
+							paField.addActionListener(onEntry);
+							JLabel paLabel = new JLabel("Delta PA: ");
+
+							dxField.setText(round( _telPref.getDouble("Delta X", _telescope.delta_x),3 ));
+							dxField.setToolTipText("Error in alignment between chip centre and telescope pointing (arcsecs). Positive values imply that the telescope rotator centre is at x-values higher than 512.");
+							dxField.setActionCommand("dx");
+							dxField.addActionListener(onEntry);
+							JLabel dxLabel = new JLabel("Delta X: ");
+
+							dyField.setText(round(_telPref.getDouble("Delta Y", _telescope.delta_y),3 ));
+							dyField.setToolTipText("Error in alignment between chip centre and telescope pointing (arcsecs). Positive values imply that the telescope rotator centre is at y-values lower than 512.");
+							dyField.setActionCommand("dy");
+							dyField.addActionListener(onEntry);
+							JLabel dyLabel = new JLabel("Delta Y: ");
+
+
+							JButton closeButton = new JButton("Close");
+							closeButton.setActionCommand("close");
+							closeButton.addActionListener(onEntry);
+
+							int xpos=0; int ypos=0;
+							addComponent(newPanel, nameLabel, xpos++, ypos, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+							addComponent(newPanel, nameField, xpos--, ypos++, 2, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+							addComponent(newPanel, flipLabel, xpos++, ypos, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+							addComponent(newPanel, flipyes, xpos++, ypos, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+							addComponent(newPanel, flipno, xpos, ypos++, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+							xpos -= 2;
+							addComponent(newPanel, psLabel, xpos++, ypos, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+							addComponent(newPanel, psField, xpos--, ypos++, 2, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+							addComponent(newPanel, paLabel, xpos++, ypos, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+							addComponent(newPanel, paField, xpos--, ypos++, 2, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+							addComponent(newPanel, dxLabel, xpos++, ypos, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+							addComponent(newPanel, dxField, xpos--, ypos++, 2, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+							addComponent(newPanel, dyLabel, xpos++, ypos, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+							addComponent(newPanel, dyField, xpos--, ypos++, 2, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+
+							addComponent(newPanel, closeButton, xpos, ++ypos, 3, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+
+							newframe.add(newPanel);
+							newframe.pack();
+							newframe.setVisible(true);
+						}
+						});
+					}
+				});
+		telMenu.add(_set);
+
+		return telMenu;
+	}
 
     // Create the "File" menu
     private JMenu createFileMenu() {
@@ -1893,90 +2012,96 @@ public class ufinder extends JFrame implements VOApp,
 
     public void loadConfig() throws Exception {
 
-	final Properties properties = new Properties();
-	if (CONFIG_FILE.equals("ufinder.conf")){
-	    //let's try loading it from the class
-            InputStream is = getClass().getClassLoader().getResourceAsStream("ufinder.conf");
-	    properties.load(is);
-	}else{
-	    properties.load(new FileInputStream(CONFIG_FILE));
-	}
-	RTPLOT_SERVER_ON     = _loadBooleanProperty(properties, "RTPLOT_SERVER_ON");
-	FILE_LOGGING_ON      = _loadBooleanProperty(properties, "FILE_LOGGING_ON");
-	ULTRACAM_SERVERS_ON  = _loadBooleanProperty(properties, "ULTRACAM_SERVERS_ON");
-	OBSERVING_MODE       = _loadBooleanProperty(properties, "OBSERVING_MODE");
-	DEBUG                = _loadBooleanProperty(properties, "DEBUG");
-	TELESCOPE            = _loadProperty(properties,        "TELESCOPE");
+		final Properties properties = new Properties();
+		if (CONFIG_FILE.equals("ufinder.conf")){
+			//let's try loading it from the class
+				InputStream is = getClass().getClassLoader().getResourceAsStream("ufinder.conf");
+			properties.load(is);
+		}else{
+			properties.load(new FileInputStream(CONFIG_FILE));
+		}
+		RTPLOT_SERVER_ON     = _loadBooleanProperty(properties, "RTPLOT_SERVER_ON");
+		FILE_LOGGING_ON      = _loadBooleanProperty(properties, "FILE_LOGGING_ON");
+		ULTRACAM_SERVERS_ON  = _loadBooleanProperty(properties, "ULTRACAM_SERVERS_ON");
+		OBSERVING_MODE       = _loadBooleanProperty(properties, "OBSERVING_MODE");
+		DEBUG                = _loadBooleanProperty(properties, "DEBUG");
 
-	// Set the current telescope
-	for(int i=0; i<TELESCOPE_DATA.length; i++){
-	    if(TELESCOPE_DATA[i].name.equals(TELESCOPE)){
-		_telescope = TELESCOPE_DATA[i];
-		_old_telescope = _telescope;
-		break;
-	    }
-	}
+		// Set the current telescope
+		// first set to hard coded defaults
+		TELESCOPE = _telPref.get("Name", "NTT");
+		// Set the current telescope
+		for(int i=0; i<TELESCOPE_DATA.length; i++){
+			if(TELESCOPE_DATA[i].name.equals(TELESCOPE)){
+				_telescope = TELESCOPE_DATA[i];
+				_old_telescope = _telescope;
+			break;
+			}
+		}
+		// now read in user set preferences if available
+		_telescope.name       = _telPref.get("Name",     _telescope.name);
+		_telescope.plateScale = _telPref.getDouble("Plate Scale", _telescope.plateScale);
+		_telescope.flipped    = _telPref.getBoolean("Flip E-W", _telescope.flipped);
+		_telescope.delta_pa   = _telPref.getDouble("Delta PA", _telescope.delta_pa);
+		_telescope.delta_x    = _telPref.getDouble("Delta X",  _telescope.delta_x);
+		_telescope.delta_y    = _telPref.getDouble("Delta Y",  _telescope.delta_y);
 
-	if(_telescope == null){
-	    String MESSAGE = "TELESCOPE = " + TELESCOPE + " was not found amongst the list of supported telescopes:\n";
-	    for(int i=0; i<TELESCOPE_DATA.length-1; i++)
-		MESSAGE += TELESCOPE_DATA[i].name + ", ";
-	    MESSAGE += TELESCOPE_DATA[TELESCOPE_DATA.length-1].name;
-	    throw new Exception(MESSAGE);
-	}
+		if(_telescope == null){
+			String MESSAGE = "TELESCOPE = " + TELESCOPE + " was not found amongst the list of supported telescopes:\n";
+			for(int i=0; i<TELESCOPE_DATA.length-1; i++)
+			MESSAGE += TELESCOPE_DATA[i].name + ", ";
+			MESSAGE += TELESCOPE_DATA[TELESCOPE_DATA.length-1].name;
+			throw new Exception(MESSAGE);
+		}
 
-	HTTP_CAMERA_SERVER   = _loadProperty(properties, "HTTP_CAMERA_SERVER");
-	if(!HTTP_CAMERA_SERVER.trim().endsWith("/"))
-	    HTTP_CAMERA_SERVER = HTTP_CAMERA_SERVER.trim() + "/";
+		HTTP_CAMERA_SERVER   = _loadProperty(properties, "HTTP_CAMERA_SERVER");
+		if(!HTTP_CAMERA_SERVER.trim().endsWith("/"))
+			HTTP_CAMERA_SERVER = HTTP_CAMERA_SERVER.trim() + "/";
 
-	HTTP_DATA_SERVER    = _loadProperty(properties, "HTTP_DATA_SERVER");
-	if(!HTTP_DATA_SERVER.trim().endsWith("/"))
-	    HTTP_DATA_SERVER = HTTP_DATA_SERVER.trim() + "/";
+		HTTP_DATA_SERVER    = _loadProperty(properties, "HTTP_DATA_SERVER");
+		if(!HTTP_DATA_SERVER.trim().endsWith("/"))
+			HTTP_DATA_SERVER = HTTP_DATA_SERVER.trim() + "/";
 
-	HTTP_PATH_GET         = _loadProperty(properties,        "HTTP_PATH_GET");
-	HTTP_PATH_EXEC        = _loadProperty(properties,        "HTTP_PATH_EXEC");
-	HTTP_PATH_CONFIG      = _loadProperty(properties,        "HTTP_PATH_CONFIG");
-	HTTP_SEARCH_ATTR_NAME = _loadProperty(properties,        "HTTP_SEARCH_ATTR_NAME");
-	APP_DIRECTORY         = _loadProperty(properties,        "APP_DIRECTORY");
-	XML_TREE_VIEW         = _loadBooleanProperty(properties, "XML_TREE_VIEW");
+		HTTP_PATH_GET         = _loadProperty(properties,        "HTTP_PATH_GET");
+		HTTP_PATH_EXEC        = _loadProperty(properties,        "HTTP_PATH_EXEC");
+		HTTP_PATH_CONFIG      = _loadProperty(properties,        "HTTP_PATH_CONFIG");
+		HTTP_SEARCH_ATTR_NAME = _loadProperty(properties,        "HTTP_SEARCH_ATTR_NAME");
+		APP_DIRECTORY         = _loadProperty(properties,        "APP_DIRECTORY");
+		XML_TREE_VIEW         = _loadBooleanProperty(properties, "XML_TREE_VIEW");
 
-	TEMPLATE_FROM_SERVER  = OBSERVING_MODE && _loadBooleanProperty(properties, "TEMPLATE_FROM_SERVER");
-	final String dsep = System.getProperty("file.separator");
+		TEMPLATE_FROM_SERVER  = OBSERVING_MODE && _loadBooleanProperty(properties, "TEMPLATE_FROM_SERVER");
+		final String dsep = System.getProperty("file.separator");
 
-	TEMPLATE_DIRECTORY   = _loadProperty(properties, "TEMPLATE_DIRECTORY");
-	if(!TEMPLATE_DIRECTORY.trim().endsWith(dsep))
-	    TEMPLATE_DIRECTORY = TEMPLATE_DIRECTORY.trim() + dsep;
+		TEMPLATE_DIRECTORY   = _loadProperty(properties, "TEMPLATE_DIRECTORY");
+		if(!TEMPLATE_DIRECTORY.trim().endsWith(dsep))
+			TEMPLATE_DIRECTORY = TEMPLATE_DIRECTORY.trim() + dsep;
 
-	EXPERT_MODE        = _loadBooleanProperty(properties, "EXPERT_MODE");
-	LOG_FILE_DIRECTORY = _loadProperty(properties, "LOG_FILE_DIRECTORY");
-	CONFIRM_ON_CHANGE  =  OBSERVING_MODE && _loadBooleanProperty(properties, "CONFIRM_ON_CHANGE");
-	CHECK_FOR_MASK     =  OBSERVING_MODE && _loadBooleanProperty(properties, "CHECK_FOR_MASK");
-
-
-	TEMPLATE_LABEL     = _loadSplitProperty(properties, "TEMPLATE_LABEL");
-
-	TEMPLATE_PAIR      = _loadSplitProperty(properties, "TEMPLATE_PAIR");
-	if(TEMPLATE_PAIR.length != TEMPLATE_LABEL.length)
-	    throw new Exception("Number of TEMPLATE_PAIR = " + TEMPLATE_PAIR.length +
-				" does not equal the number of TEMPLATE_LABEL = " + TEMPLATE_LABEL.length);
-
-	TEMPLATE_APP       = _loadSplitProperty(properties, "TEMPLATE_APP");
-	if(TEMPLATE_APP.length != TEMPLATE_LABEL.length)
-	    throw new Exception("Number of TEMPLATE_APP = " + TEMPLATE_APP.length +
-				" does not equal the number of TEMPLATE_LABEL = " + TEMPLATE_LABEL.length);
-
-	TEMPLATE_ID        = _loadSplitProperty(properties, "TEMPLATE_ID");
-	if(TEMPLATE_ID.length != TEMPLATE_LABEL.length)
-	    throw new Exception("Number of TEMPLATE_ID = " + TEMPLATE_ID.length +
-				" does not equal the number of TEMPLATE_LABEL = " + TEMPLATE_LABEL.length);
-
-	POWER_ON  = _loadProperty(properties, "POWER_ON");
-	POWER_OFF = _loadProperty(properties, "POWER_OFF");
+		EXPERT_MODE        = _loadBooleanProperty(properties, "EXPERT_MODE");
+		LOG_FILE_DIRECTORY = _loadProperty(properties, "LOG_FILE_DIRECTORY");
+		CONFIRM_ON_CHANGE  =  OBSERVING_MODE && _loadBooleanProperty(properties, "CONFIRM_ON_CHANGE");
+		CHECK_FOR_MASK     =  OBSERVING_MODE && _loadBooleanProperty(properties, "CHECK_FOR_MASK");
 
 
+		TEMPLATE_LABEL     = _loadSplitProperty(properties, "TEMPLATE_LABEL");
+
+		TEMPLATE_PAIR      = _loadSplitProperty(properties, "TEMPLATE_PAIR");
+		if(TEMPLATE_PAIR.length != TEMPLATE_LABEL.length)
+			throw new Exception("Number of TEMPLATE_PAIR = " + TEMPLATE_PAIR.length +
+					" does not equal the number of TEMPLATE_LABEL = " + TEMPLATE_LABEL.length);
+
+		TEMPLATE_APP       = _loadSplitProperty(properties, "TEMPLATE_APP");
+		if(TEMPLATE_APP.length != TEMPLATE_LABEL.length)
+			throw new Exception("Number of TEMPLATE_APP = " + TEMPLATE_APP.length +
+					" does not equal the number of TEMPLATE_LABEL = " + TEMPLATE_LABEL.length);
+
+		TEMPLATE_ID        = _loadSplitProperty(properties, "TEMPLATE_ID");
+		if(TEMPLATE_ID.length != TEMPLATE_LABEL.length)
+			throw new Exception("Number of TEMPLATE_ID = " + TEMPLATE_ID.length +
+					" does not equal the number of TEMPLATE_LABEL = " + TEMPLATE_LABEL.length);
+
+		POWER_ON  = _loadProperty(properties, "POWER_ON");
+		POWER_OFF = _loadProperty(properties, "POWER_OFF");
 
     }
-        //------------------------------------------------------------------------------------------------------------------------------------------
 
     /** Splits up multiple arguments from configuration file */
     private String[] _loadSplitProperty(final Properties properties, final String key) throws Exception {
